@@ -22,14 +22,36 @@ func NewAuthHandler(s service.IAuthService) IAuthHandler {
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var user model.User
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "รูปแบบข้อมูลไม่ถูกต้อง",
+		})
 	}
 
 	if err := h.service.Register(&user); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(model.ErrorResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: err.Error(),
+		})
 	}
 
-	return c.JSON(fiber.Map{"message": "register success"})
+	response := model.RegisterResponse{
+		Status:  fiber.StatusCreated,
+		Message: "สร้างผู้ใช้สำเร็จ",
+		User: struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Role     string `json:"role"`
+		}{
+			ID:       user.ID.Hex(),
+			Username: user.Username,
+			Email:    user.Email,
+			Role:     user.Role,
+		},
+	}
+
+	return c.Status(response.Status).JSON(response)
 }
 
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
@@ -38,10 +60,28 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
 	}
 
-	token, err := h.service.Login(creds.Email, creds.Password)
+	token, expiresIn, user, err := h.service.Login(creds.Email, creds.Password)
 	if err != nil {
 		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"access_token": token})
+	response := model.LoginResponse{
+		Status:      fiber.StatusOK,
+		Message:     "เข้าสู่ระบบสำเร็จ",
+		AccessToken: token,
+		ExpiresIn:   int(expiresIn),
+		User: struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Role     string `json:"role"`
+		}{
+			ID:       user.ID.Hex(),
+			Username: user.Username,
+			Email:    user.Email,
+			Role:     user.Role,
+		},
+	}
+
+	return c.Status(response.Status).JSON(response)
 }

@@ -1,0 +1,21 @@
+# .air.toml
+root = "."
+tmp_dir = "tmp" # ยังคงมี tmp_dir อยู่ แต่จะไม่ได้ใช้สร้าง binary ตรงๆ ในกรณีนี้
+
+[build]
+# ปิดการใช้งาน go build ด้วยการตั้งค่า build_cmd เป็น ""
+# หรือจะลบส่วน build ไปเลยก็ได้ แต่การตั้งค่าเป็น "" จะครอบคลุมกว่า
+build_cmd = ""
+bin = "" # ไม่ต้องระบุ bin เพราะเราจะไม่สร้างไฟล์ binary โดยตรง
+
+[run]
+# คำสั่งที่จะรันเมื่อตรวจพบการเปลี่ยนแปลง
+# Air จะรันคำสั่งนี้โดยตรง
+cmds = ["go run ./cmd/main.go"]
+
+# ส่วนอื่นๆ ที่เคยมี อาจจะไม่จำเป็นแล้ว แต่ถ้ามีก็ปล่อยไว้ได้
+# include_ext = ["go", "tpl", "tmpl", "html", "css", "js"]
+# exclude_dir = ["assets", "tmp", "vendor", "node_modules"]
+# log = "build-errors.log"
+# delay = 1000
+# stop_on_error = true

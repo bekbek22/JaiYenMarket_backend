@@ -2,16 +2,18 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"github.com/bekbek22/JaiYenMarket_backend/config"
 	"github.com/bekbek22/JaiYenMarket_backend/pkg/model"
 	"github.com/bekbek22/JaiYenMarket_backend/pkg/repository"
 	"github.com/bekbek22/JaiYenMarket_backend/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type IAuthService interface {
 	Register(user *model.User) error
-	Login(email, password string) (string, error)
+	Login(email, password string) (string, int64, *model.User, error)
 }
 
 type AuthService struct {
@@ -27,11 +29,23 @@ func NewAuthService(r repository.IAuthRepository, cfg *config.Config) IAuthServi
 }
 
 func (s *AuthService) Register(user *model.User) error {
-	exisiting, _ := s.repo.FindByEmail(user.Email)
 
-	if exisiting != nil {
-		return errors.New("email already registered")
+	if user.Username == "" || user.Email == "" || user.Password == "" {
+		return errors.New("กรุณากรอกช้อมูลให้ครบ")
 	}
+
+	exisiting, _ := s.repo.FindByEmail(user.Email)
+	if exisiting != nil {
+		return errors.New("อีเมลนี้ถูกใช้งานแล้ว")
+	}
+
+	if user.Role == "" {
+		user.Role = "user"
+	}
+
+	// สร้าง ObjectID ใหม่
+	user.ID = primitive.NewObjectID()
+	user.CreatedAt = time.Now().Unix()
 
 	// Hash password
 	hashedPassword, err := utils.HashPassword(user.Password)
@@ -40,30 +54,36 @@ func (s *AuthService) Register(user *model.User) error {
 	}
 
 	Users := &model.User{
-		Name:     user.Name,
+		Username: user.Username,
 		Email:    user.Email,
-		Role:     "user", //set default
+		Role:     user.Role,
 		Password: hashedPassword,
 	}
 
-	return s.repo.CreateUser(Users)
+	err = s.repo.CreateUser(Users)
+	if err != nil {
+		return errors.New("การบันทึกข้อมูลไม่สำเร็จ")
+	}
+
+	return nil
 }
 
-func (s *AuthService) Login(email, password string) (string, error) {
+func (s *AuthService) Login(email, password string) (string, int64, *model.User, error) {
 	user, err := s.repo.FindByEmail(email)
-
 	if err != nil {
-		return "", errors.New("user not found")
+		return "", 0, nil, errors.New("ไม่มีผู้ใช้งานนี้")
 	}
 
 	if !utils.CheckPasswordHash(password, user.Password) {
-		return "", errors.New("invalid password")
+		return "", 0, nil, errors.New("รหัสผ่านไม่ถูกต้อง")
 	}
+	expiresIn := int64(3600)
+	exp := time.Now().Add(time.Second * time.Duration(expiresIn)).Unix() // 3600 sec
 
-	token, err := utils.GenerateJWT(user.ID.Hex(), user.Role, s.Cfg.JWTSecret)
+	token, err := utils.GenerateJWT(user.ID.Hex(), user.Role, s.Cfg.JWTSecret, exp)
 	if err != nil {
-		return "", errors.New("failed to generate token")
+		return "", 0, nil, errors.New("failed to generate token")
 	}
 
-	return token, nil
+	return token, expiresIn, user, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/bekbek22/JaiYenMarket_backend/handler"
 	"github.com/bekbek22/JaiYenMarket_backend/pkg/repository"
 	"github.com/bekbek22/JaiYenMarket_backend/pkg/service"
+	"github.com/bekbek22/JaiYenMarket_backend/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 )
@@ -25,11 +26,13 @@ func main() {
 
 	app := fiber.New()
 
-	userCol := db.MongoClient.Database("mydb").Collection("users")
+	userCol := db.MongoClient.Database("JaiYenMarket").Collection("users")
 
 	authRepo := repository.NewAuthRepository(userCol)    // type: IAuthRepository
 	authService := service.NewAuthService(authRepo, cfg) // type: IAuthService
 	authHandler := handler.NewAuthHandler(authService)   // type: IAuthHandler
+
+	routes.RegisterRoutes(app, authHandler)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello world!!")
@@ -47,8 +50,8 @@ func main() {
 		})
 	})
 
-	app.Post("/register", authHandler.Register)
-	app.Post("/login", authHandler.Login)
+	// app.Post("/register", authHandler.Register)
+	// app.Post("/login", authHandler.Login)
 
 	app.Listen(":3000")
 }
