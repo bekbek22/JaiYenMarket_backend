@@ -27,12 +27,23 @@ func main() {
 	app := fiber.New()
 
 	userCol := db.MongoClient.Database("JaiYenMarket").Collection("users")
+	tradeCol := db.MongoClient.Database("JaiYenMarket").Collection("trades")
+	walletCol := db.MongoClient.Database("JaiYenMarket").Collection("wallets")
+	transactionCol := db.MongoClient.Database("JaiYenMarket").Collection("transactions")
 
 	authRepo := repository.NewAuthRepository(userCol)    // type: IAuthRepository
 	authService := service.NewAuthService(authRepo, cfg) // type: IAuthService
 	authHandler := handler.NewAuthHandler(authService)   // type: IAuthHandler
 
-	routes.RegisterRoutes(app, authHandler)
+	tradeRepo := repository.NewTradeRepository(tradeCol)
+	tradeService := service.NewTradeService(tradeRepo)
+	tradeHandler := handler.NewTradeHandler(tradeService)
+
+	walletRepo := repository.NewWalletRepository(walletCol, transactionCol)
+	walletService := service.NewWalletService(walletRepo)
+	walletHandler := handler.NewWalletHandler(walletService)
+
+	routes.RegisterRoutes(app, authHandler, tradeHandler, walletHandler)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello world!!")
